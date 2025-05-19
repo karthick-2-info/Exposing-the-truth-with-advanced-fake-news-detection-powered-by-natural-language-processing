@@ -1,1 +1,78 @@
+# Fake News Detection Project using NLP
 
+# Step 1: Import libraries
+import pandas as pd
+import numpy as np
+import re
+import nltk
+import matplotlib.pyplot as plt
+import seaborn as sns
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+
+# Download necessary NLTK data
+nltk.download('stopwords')
+nltk.download('wordnet')
+
+# Step 2: Load dataset
+# Download dataset from Kaggle: https://www.kaggle.com/datasets/clmentbisaillon/fake-and-real-news-dataset
+# Ensure Fake.csv and True.csv are in your working directory
+
+fake_df = pd.read_csv("Fake.csv")
+true_df = pd.read_csv("True.csv")
+
+fake_df['label'] = 0  # Fake
+true_df['label'] = 1  # Real
+
+# Combine datasets
+df = pd.concat([fake_df, true_df], axis=0).reset_index(drop=True)
+
+# Step 3: Preprocessing
+stop_words = set(stopwords.words('english'))
+lemmatizer = WordNetLemmatizer()
+
+def preprocess(text):
+    text = re.sub(r'[^a-zA-Z]', ' ', text)
+    text = text.lower()
+    tokens = text.split()
+    tokens = [lemmatizer.lemmatize(word) for word in tokens if word not in stop_words]
+    return ' '.join(tokens)
+
+# Apply preprocessing to text column
+df['text'] = df['title'] + ' ' + df['text']  # Combine title and content
+df['text'] = df['text'].apply(preprocess)
+
+# Step 4: Feature Extraction
+vectorizer = TfidfVectorizer(max_features=5000)
+X = vectorizer.fit_transform(df['text']).toarray()
+y = df['label']
+
+# Step 5: Train-Test Split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Step 6: Model Training
+model = LogisticRegression()
+model.fit(X_train, y_train)
+
+# Step 7: Predictions and Evaluation
+y_pred = model.predict(X_test)
+
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print("Classification Report:\n", classification_report(y_test, y_pred))
+
+# Confusion Matrix
+cm = confusion_matrix(y_test, y_pred)
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+plt.xlabel('Predicted')
+plt.ylabel('Actual')
+plt.title('Confusion Matrix')
+plt.show()
+
+# Step 8: Save Model (Optional)
+# import joblib
+# joblib.dump(model, 'fake_news_model.pkl')
+# joblib.dump(vectorizer, 'tfidf_vectorizer.pkl')
